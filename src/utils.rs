@@ -1,3 +1,5 @@
+pub mod encryption;
+
 use actix_web::{HttpResponse, Result};
 use serde::Serialize;
 

@@ -49,7 +49,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 WORKDIR /app
 
 # Copy the compiled binary from the builder stage
-COPY --from=builder /app/target/release/docker-app /usr/local/bin/app
+COPY --from=builder /app/target/release/a_back /usr/local/bin/app
 
 # Change ownership of the app directory to the non-root user
 RUN chown -R appuser:appuser /app

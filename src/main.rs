@@ -6,7 +6,6 @@ mod models;
 mod schema;
 mod utils;
 
-use crate::controllers::auth::extract;
 use actix_cors::Cors;
 use actix_web::dev::ServiceRequest;
 use actix_web::http;
@@ -24,13 +23,6 @@ use jsonwebtoken::{decode, DecodingKey, Validation};
 pub struct AppState {
 	db: r2d2::Pool<ConnectionManager<diesel::PgConnection>>,
 	env: Config,
-}
-
-async fn health_check() -> HttpResponse {
-	HttpResponse::Ok().json(serde_json::json!({
-		"status": "healthy",
-		"message": "Service is running"
-	}))
 }
 
 #[actix_web::main]
@@ -78,7 +70,6 @@ async fn main() -> std::io::Result<()> {
 				.configure(controllers::config)
 				.wrap(Cors::permissive())
 				.wrap(Logger::default())
-				.route("/health", web::get().to(health_check))
 				.route(
 					"/",
 					web::get().to(|| async { HttpResponse::Ok().body("Actix-web server is running!") }),
