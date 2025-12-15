@@ -1,6 +1,6 @@
 use crate::jwt_auth::JwtMiddleware;
 use crate::{
-	models::{AvitoRequest, AvitoRequestsResponse, AvitoRequestsDataWithCount},
+	models::{AvitoRequest, AvitoRequestsDataWithCount, AvitoRequestsResponse},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};

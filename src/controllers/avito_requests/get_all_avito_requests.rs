@@ -1,6 +1,6 @@
 use crate::jwt_auth::JwtMiddleware;
 use crate::{
-	models::{AvitoRequest, AvitoRequestsResponse, AvitoRequestsDataWithCount},
+	models::{AvitoRequest, AvitoRequestsDataWithCount, AvitoRequestsResponse},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
@@ -14,7 +14,7 @@ pub async fn get_all_avito_requests(
 	user: JwtMiddleware,
 ) -> Result<HttpResponse> {
 	let mut conn = data.db.get().unwrap();
-	
+
 	// Get total count
 	let total_count: i64 = crate::schema::avito_requests::table
 		.count()
@@ -29,9 +29,9 @@ pub async fn get_all_avito_requests(
 				count: total_count,
 			},
 		})),
-	Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
-			"status": "error",
-			"message": "Failed to fetch avito requests"
-	}))),
+		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch avito requests"
+		}))),
 	}
 }

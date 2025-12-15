@@ -1,5 +1,5 @@
 use crate::jwt_auth::JwtMiddleware;
-use crate::{AppState};
+use crate::AppState;
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;

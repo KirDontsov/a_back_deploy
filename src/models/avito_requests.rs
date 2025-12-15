@@ -1,5 +1,5 @@
 use crate::schema::avito_requests;
-use chrono::{NaiveDateTime};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;

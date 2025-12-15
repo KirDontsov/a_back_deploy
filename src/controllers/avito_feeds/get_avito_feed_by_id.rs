@@ -1,7 +1,4 @@
-use crate::{
-	models::{AvitoFeed},
-	AppState,
-};
+use crate::{models::AvitoFeed, AppState};
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;

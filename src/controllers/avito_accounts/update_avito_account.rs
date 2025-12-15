@@ -147,8 +147,5 @@ fn encrypt_field(field: &str) -> Result<String, Box<dyn std::error::Error>> {
 
 	let iv = encryption::generate_iv();
 	let encrypted_data = encryption::encrypt_data(field, &ENCRYPTION_KEY, &iv);
-	Ok(encryption::combine_iv_and_data(
-		&iv,
-		&encrypted_data,
-	))
+	Ok(encryption::combine_iv_and_data(&iv, &encrypted_data))
 }
