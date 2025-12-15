@@ -51,7 +51,7 @@ impl FromRequest for JwtMiddleware {
 			return ready(Err(ErrorUnauthorized(json_error)));
 		}
 
-	let claims = match decode::<TokenClaims>(
+		let claims = match decode::<TokenClaims>(
 			&token.unwrap(),
 			&DecodingKey::from_secret(data.env.jwt_secret.as_ref()),
 			&Validation::default(),
@@ -64,7 +64,7 @@ impl FromRequest for JwtMiddleware {
 				};
 				return ready(Err(ErrorUnauthorized(json_error)));
 			}
-	};
+		};
 
 		// Check if token is expired
 		let current_timestamp = chrono::Utc::now().timestamp() as usize;
@@ -95,7 +95,10 @@ impl FromRequest for JwtMiddleware {
 }
 
 // Function to generate a new token
-pub fn generate_token(user_id: uuid::Uuid, jwt_secret: &str) -> Result<String, jsonwebtoken::errors::Error> {
+pub fn generate_token(
+	user_id: uuid::Uuid,
+	jwt_secret: &str,
+) -> Result<String, jsonwebtoken::errors::Error> {
 	let expiration = chrono::Utc::now()
 		.checked_add_signed(chrono::Duration::hours(24))
 		.unwrap()

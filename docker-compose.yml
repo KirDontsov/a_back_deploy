@@ -103,13 +103,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRED_IN: ${JWT_EXPIRED_IN}
       JWT_MAXAGE: ${JWT_MAXAGE}
-      RABBITMQ_URL: ${RABBITMQ_URL}
+      RABBITMQ_URL: amqp://admin:mq2025RABBIT@rabbitmq:5672
       SECURE_COOKIES: ${SECURE_COOKIES}
     depends_on:
       postgres:
         condition: service_healthy
       db-init:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
     command: |
       sh -c "
         # Wait for database to be ready
@@ -134,6 +136,11 @@ services:
       RABBITMQ_DEFAULT_PASS: mq2025RABBIT
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

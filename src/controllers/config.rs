@@ -1,14 +1,17 @@
-use crate::AppState;
-use actix_web::{web, HttpRequest};
 use crate::controllers::auth;
-use crate::controllers::users;
 use crate::controllers::avito_accounts;
+use crate::controllers::avito_ads;
+use crate::controllers::avito_requests;
+use crate::controllers::users;
+use actix_web::{web};
 
 pub fn config(conf: &mut web::ServiceConfig) {
-    let scope = web::scope("/api")
-        .configure(auth::auth_config)
-        .configure(users::users_config)
-        .configure(avito_accounts::avito_accounts_config);
+	let scope = web::scope("/api")
+		.configure(auth::auth_config)
+		.configure(users::users_config)
+		.configure(avito_accounts::avito_accounts_config)
+		.configure(avito_ads::avito_ads_config)
+		.configure(avito_requests::avito_requests_config);
 
-    conf.service(scope);
+	conf.service(scope);
 }
