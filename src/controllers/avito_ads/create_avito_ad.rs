@@ -14,34 +14,34 @@ pub async fn create_avito_ad(
 	body: web::Json<CreateAvitoAd>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-	if body.title.is_empty() {
+	if body.feed_id.is_nil() { // Check if feed_id is valid (not zero UUID)
 		return Ok(HttpResponse::BadRequest().json(json!({
 			"status": "error",
-			"message": "Title is required"
+			"message": "Feed ID is required"
 		})));
 	}
 
 	let mut conn = data.db.get().unwrap();
 
-	// Check if the user has access to the account
-	let account_exists: Result<crate::models::AvitoAccount, diesel::result::Error> =
-		crate::schema::avito_accounts::table
-			.filter(crate::schema::avito_accounts::account_id.eq(body.account_id))
+	// Check if the user has access to the feed (which is linked to an account)
+	let feed_exists: Result<crate::models::AvitoFeed, diesel::result::Error> =
+		crate::schema::avito_feeds::table
+			.inner_join(crate::schema::avito_accounts::table)
+			.filter(crate::schema::avito_feeds::feed_id.eq(body.feed_id))
 			.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
-			.first::<crate::models::AvitoAccount>(&mut conn);
+			.select(crate::schema::avito_feeds::all_columns)
+			.first::<crate::models::AvitoFeed>(&mut conn);
 
-	match account_exists {
+	match feed_exists {
 		Ok(_) => {
-			// User has access to this account, proceed with creating the ad
+			// User has access to this feed, proceed with creating the ad
 			let new_avito_ad = diesel::insert_into(crate::schema::avito_ads::table)
 				.values((
-					crate::schema::avito_ads::account_id.eq(body.account_id),
-					crate::schema::avito_ads::title.eq(&body.title),
-					crate::schema::avito_ads::description.eq(&body.description),
-					crate::schema::avito_ads::price.eq(&body.price),
+					crate::schema::avito_ads::feed_id.eq(body.feed_id),
+					crate::schema::avito_ads::avito_ad_id.eq(&body.avito_ad_id),
+					crate::schema::avito_ads::parsed_id.eq(&body.parsed_id),
 					crate::schema::avito_ads::status.eq(&body.status),
 					crate::schema::avito_ads::created_ts.eq(Utc::now().naive_utc()),
-					crate::schema::avito_ads::updated_ts.eq(Utc::now().naive_utc()),
 				))
 				.get_result::<AvitoAd>(&mut conn);
 
@@ -55,7 +55,7 @@ pub async fn create_avito_ad(
 					_,
 				)) => Ok(HttpResponse::BadRequest().json(json!({
 					"status": "fail",
-					"message": "Account ID does not exist"
+					"message": "Feed ID does not exist"
 				}))),
 				Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 					"status": "error",
@@ -65,11 +65,11 @@ pub async fn create_avito_ad(
 		}
 		Err(diesel::result::Error::NotFound) => Ok(HttpResponse::Forbidden().json(json!({
 			"status": "fail",
-			"message": "You don't have permission to create ads for this account"
+			"message": "You don't have permission to create ads for this feed"
 		}))),
 		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 			"status": "error",
-			"message": "Failed to verify account access"
+			"message": "Failed to verify feed access"
 		}))),
 	}
 }

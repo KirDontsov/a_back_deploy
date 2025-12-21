@@ -1,62 +1,70 @@
 use crate::schema::avito_feeds;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
+
+// Generic structure to hold any XML tag and its value
+#[derive(Debug)]
+pub struct XmlAd {
+    pub id: String,
+    pub fields: HashMap<String, String>,
+}
+
+
 
 #[derive(Queryable, Selectable, Serialize, Deserialize, Debug, Clone)]
 #[diesel(table_name = avito_feeds)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct AvitoFeed {
-	pub feed_id: Uuid,
-	pub account_id: Uuid,
-	pub name: String,
-	pub description: Option<String>,
-	pub feed_type: Option<String>,
-	pub is_active: Option<bool>,
-	pub created_ts: NaiveDateTime,
-	pub updated_ts: NaiveDateTime,
+    pub feed_id: Uuid,
+    pub account_id: Uuid,
+    pub category: String,
+    pub created_ts: DateTime<Utc>,
+    pub updated_ts: Option<DateTime<Utc>>,
 }
 
-#[derive(Insertable, AsChangeset, Deserialize)]
+#[derive(Insertable)]
 #[diesel(table_name = avito_feeds)]
 pub struct CreateAvitoFeed {
-	pub account_id: Uuid,
-	pub name: String,
-	pub description: Option<String>,
-	pub feed_type: Option<String>,
-	pub is_active: Option<bool>,
+    pub account_id: Uuid,
+    pub category: String,
 }
 
-#[derive(Insertable, AsChangeset, Deserialize)]
+#[derive(AsChangeset, Deserialize)]
 #[diesel(table_name = avito_feeds)]
 pub struct UpdateAvitoFeed {
-	pub name: Option<String>,
-	pub description: Option<String>,
-	pub feed_type: Option<String>,
-	pub is_active: Option<bool>,
-	pub updated_ts: Option<NaiveDateTime>,
+    pub category: Option<String>,
+    pub updated_ts: Option<DateTime<Utc>>,
 }
 
 #[derive(Serialize)]
 pub struct AvitoFeedResponse {
-	pub status: String,
-	pub data: AvitoFeedData,
+    pub status: String,
+    pub data: AvitoFeedData,
 }
 
 #[derive(Serialize)]
 pub struct AvitoFeedData {
-	pub avito_feed: AvitoFeed,
+    pub avito_feed: AvitoFeed,
 }
 
 #[derive(Serialize)]
 pub struct AvitoFeedsResponse {
-	pub status: String,
-	pub results: usize,
-	pub data: AvitoFeedsData,
+    pub status: String,
+    pub data: AvitoFeedsDataWithCount,
 }
 
 #[derive(Serialize)]
 pub struct AvitoFeedsData {
-	pub avito_feeds: Vec<AvitoFeed>,
+    pub avito_feeds: Vec<AvitoFeed>,
+}
+
+#[derive(Serialize)]
+pub struct AvitoFeedsDataWithCount {
+    #[serde(rename = "avito_feeds")]
+    pub avito_feeds: Vec<AvitoFeed>,
+    #[serde(rename = "avito_feeds_count")]
+    pub count: i64,
 }

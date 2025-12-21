@@ -29,34 +29,30 @@ diesel::table! {
 }
 
 diesel::table! {
-	avito_ads (ad_id) {
-		ad_id -> Uuid,
-		account_id -> Uuid,
-		title -> Varchar,
-		description -> Nullable<Text>,
-		price -> Nullable<Integer>,
-		status -> Nullable<Varchar>,
-		created_ts -> Timestamp,
-		updated_ts -> Timestamp,
-	}
+    avito_ads (ad_id) {
+        ad_id -> Uuid,
+        feed_id -> Uuid,
+        avito_ad_id -> Nullable<Varchar>,
+        parsed_id -> Nullable<Varchar>,
+        status -> Nullable<Varchar>,
+        created_ts -> Timestamp,
+    }
 }
 
 diesel::joinable!(avito_accounts -> users (user_id));
-diesel::joinable!(avito_ads -> avito_accounts (account_id));
+// Removed join between avito_ads and avito_accounts since account_id field was removed from avito_ads
+diesel::joinable!(avito_ads -> avito_feeds (feed_id));  // Added relationship between ads and feeds
 diesel::joinable!(avito_feeds -> avito_accounts (account_id));
 diesel::joinable!(avito_requests -> users (user_id));
 
 diesel::table! {
-	avito_feeds (feed_id) {
-		feed_id -> Uuid,
-		account_id -> Uuid,
-		name -> Varchar,
-		description -> Nullable<Text>,
-		feed_type -> Nullable<Varchar>,
-		is_active -> Nullable<Bool>,
-		created_ts -> Timestamp,
-		updated_ts -> Timestamp,
-	}
+    avito_feeds (feed_id) {
+        feed_id -> Uuid,
+        account_id -> Uuid,
+        category -> Varchar,
+        created_ts -> Timestamptz,
+        updated_ts -> Nullable<Timestamptz>,
+    }
 }
 
 diesel::table! {
@@ -121,12 +117,36 @@ diesel::table! {
 		created_ts -> Nullable<Timestamptz>,
 	}
 }
+diesel::table! {
+    avito_ad_fields (field_id) {
+        field_id -> Uuid,
+        ad_id -> Uuid,
+        tag -> Nullable<Varchar>,
+        data_type -> Nullable<Varchar>,
+        field_type -> Nullable<Varchar>,
+        created_ts -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    avito_ad_field_values (field_value_id) {
+        field_value_id -> Uuid,
+        field_id -> Nullable<Uuid>,
+        value -> Nullable<Text>,
+        created_ts -> Timestamptz,
+    }
+}
+
+diesel::joinable!(avito_ad_field_values -> avito_ad_fields (field_id));
+diesel::joinable!(avito_ad_fields -> avito_ads (ad_id));
 diesel::joinable!(avito_request_progress -> avito_requests (request_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
 	users,
 	avito_accounts,
 	avito_ads,
+	avito_ad_fields,
+	avito_ad_field_values,
 	avito_analytics_ads,
 	avito_feeds,
 	avito_requests,

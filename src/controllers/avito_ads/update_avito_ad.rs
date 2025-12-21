@@ -4,7 +4,6 @@ use crate::{
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
-use chrono::Utc;
 use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
@@ -28,51 +27,80 @@ pub async fn update_avito_ad(
 
 	let mut conn = data.db.get().unwrap();
 
-	// Check if the ad exists and belongs to an account that the user has access to
-	let existing_ad: Result<(AvitoAd, crate::models::AvitoAccount), diesel::result::Error> =
-		crate::schema::avito_ads::table
-			.inner_join(crate::schema::avito_accounts::table)
-			.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
-			.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
-			.first::<(AvitoAd, crate::models::AvitoAccount)>(&mut conn);
-
-	match existing_ad {
-		Ok((_, _)) => {
-			// Update the ad
-			let updated_avito_ad = diesel::update(crate::schema::avito_ads::table.find(ad_id))
-				.set((
-					body.title
-						.as_ref()
-						.map(|t| crate::schema::avito_ads::title.eq(t)),
-					body.description
-						.as_ref()
-						.map(|d| crate::schema::avito_ads::description.eq(d)),
-					body.price.map(|p| crate::schema::avito_ads::price.eq(p)),
-					body.status
-						.as_ref()
-						.map(|s| crate::schema::avito_ads::status.eq(s)),
-					crate::schema::avito_ads::updated_ts.eq(Utc::now().naive_utc()),
-				))
-				.get_result::<AvitoAd>(&mut conn);
-
-			match updated_avito_ad {
-				Ok(avito_ad) => Ok(HttpResponse::Ok().json(AvitoAdResponse {
-					status: "success".to_string(),
-					data: AvitoAdData { avito_ad },
-				})),
-				Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
-					"status": "error",
-					"message": "Failed to update avito ad"
-				}))),
-			}
+	// First, get the ad to check if it exists
+	let avito_ad = match crate::schema::avito_ads::table
+		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
+		.first::<AvitoAd>(&mut conn)
+	{
+	Ok(ad) => ad,
+		Err(diesel::result::Error::NotFound) => {
+			return Ok(HttpResponse::NotFound().json(json!({
+				"status": "fail",
+				"message": "Avito ad not found"
+			})));
+	},
+		Err(_) => {
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch avito ad"
+			})));
 		}
-		Err(diesel::result::Error::NotFound) => Ok(HttpResponse::NotFound().json(json!({
+	};
+
+	// Check if the user has access to the account that owns the feed containing this ad
+	let feed = match crate::schema::avito_feeds::table
+		.filter(crate::schema::avito_feeds::feed_id.eq(avito_ad.feed_id))
+		.first::<crate::models::AvitoFeed>(&mut conn)
+	{
+		Ok(feed) => feed,
+		Err(_) => {
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch feed information"
+			})));
+	}
+	};
+
+	// Check if the user has access to the account that owns this feed
+	let user_has_access = match crate::schema::avito_accounts::table
+		.filter(crate::schema::avito_accounts::account_id.eq(feed.account_id))
+		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
+		.first::<crate::models::AvitoAccount>(&mut conn)
+	{
+	Ok(_) => true,
+		Err(diesel::result::Error::NotFound) => false,
+	Err(_) => {
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to verify permissions"
+			})));
+		}
+	};
+
+	if !user_has_access {
+		return Ok(HttpResponse::Forbidden().json(json!({
 			"status": "fail",
-			"message": "Avito ad not found or you don't have permission to update it"
-		}))),
+			"message": "You don't have permission to update this ad"
+		})));
+	}
+
+	// Update the ad
+	let updated_avito_ad = diesel::update(crate::schema::avito_ads::table.find(ad_id))
+		.set((
+			body.status.as_ref().map(|s| crate::schema::avito_ads::status.eq(s)),
+			body.avito_ad_id.as_ref().map(|a| crate::schema::avito_ads::avito_ad_id.eq(a)),
+			body.parsed_id.as_ref().map(|p| crate::schema::avito_ads::parsed_id.eq(p)),
+		))
+		.get_result::<AvitoAd>(&mut conn);
+
+	match updated_avito_ad {
+		Ok(avito_ad) => Ok(HttpResponse::Ok().json(AvitoAdResponse {
+			status: "success".to_string(),
+			data: AvitoAdData { avito_ad },
+		})),
 		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 			"status": "error",
-			"message": "Failed to fetch avito ad"
+			"message": "Failed to update avito ad"
 		}))),
 	}
 }

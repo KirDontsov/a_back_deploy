@@ -1,5 +1,5 @@
 use crate::schema::avito_ads;
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc, NaiveDateTime};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -8,34 +8,30 @@ use uuid::Uuid;
 #[diesel(table_name = avito_ads)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct AvitoAd {
-	pub ad_id: Uuid,
-	pub account_id: Uuid,
-	pub title: String,
-	pub description: Option<String>,
-	pub price: Option<i32>,
-	pub status: Option<String>,
-	pub created_ts: NaiveDateTime,
-	pub updated_ts: NaiveDateTime,
+    pub ad_id: Uuid,
+    pub feed_id: Uuid,
+    pub avito_ad_id: Option<String>,
+    pub parsed_id: Option<String>,
+    pub status: Option<String>,
+    pub created_ts: NaiveDateTime,
 }
 
 #[derive(Insertable, AsChangeset, Deserialize)]
 #[diesel(table_name = avito_ads)]
 pub struct CreateAvitoAd {
-	pub account_id: Uuid,
-	pub title: String,
-	pub description: Option<String>,
-	pub price: Option<i32>,
-	pub status: Option<String>,
+    pub feed_id: Uuid,
+    pub avito_ad_id: Option<String>,
+    pub parsed_id: Option<String>,
+    pub status: Option<String>,
+    pub created_ts: Option<NaiveDateTime>,
 }
 
 #[derive(Insertable, AsChangeset, Deserialize)]
 #[diesel(table_name = avito_ads)]
 pub struct UpdateAvitoAd {
-	pub title: Option<String>,
-	pub description: Option<String>,
-	pub price: Option<i32>,
-	pub status: Option<String>,
-	pub updated_ts: Option<NaiveDateTime>,
+    pub status: Option<String>,
+    pub avito_ad_id: Option<String>,
+    pub parsed_id: Option<String>,
 }
 
 #[derive(Serialize)]

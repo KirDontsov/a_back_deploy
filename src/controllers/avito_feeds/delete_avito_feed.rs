@@ -4,34 +4,22 @@ use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-#[actix_web::delete("/feeds/{feed_id}")]
-pub async fn delete_avito_feed(
-	path: web::Path<Uuid>,
-	data: web::Data<AppState>,
-) -> Result<HttpResponse> {
-	let feed_id = path.into_inner();
-	let mut conn = data.db.get().unwrap();
+#[actix_web::delete("/avito/feeds/{id}")]
+pub async fn delete_avito_feed(path: web::Path<Uuid>, data: web::Data<AppState>) -> Result<HttpResponse> {
+    let feed_id = path.into_inner();
+    let mut conn = data.db.get().unwrap();
 
-	match diesel::delete(
-		crate::schema::avito_feeds::table.filter(crate::schema::avito_feeds::feed_id.eq(feed_id)),
-	)
-	.get_result::<AvitoFeed>(&mut conn)
-	{
-		Ok(feed) => Ok(HttpResponse::Ok().json(json!({
-			"status": "success",
-			"message": "Feed deleted successfully",
-			"data": {
-				"avito_feed": feed
-			}
-		}))),
-		Err(diesel::result::Error::NotFound) => Ok(HttpResponse::NotFound().json(json!({
-			"status": "fail",
-			"message": "Feed with ID not found"
-		}))),
-		Err(e) => Ok(HttpResponse::InternalServerError().json(json!({
-			"status": "error",
-			"message": "Failed to delete feed",
-			"details": e.to_string()
-		}))),
-	}
+    let deleted_feed = diesel::delete(crate::schema::avito_feeds::table.find(feed_id))
+        .get_result::<AvitoFeed>(&mut conn);
+
+    match deleted_feed {
+        Ok(_) => Ok(HttpResponse::Ok().json(json!({
+            "status": "success",
+            "message": "Avito feed deleted successfully"
+        }))),
+        Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
+            "status": "error",
+            "message": "Failed to delete avito feed"
+        }))),
+    }
 }
