@@ -1,20 +1,17 @@
 use crate::jwt_auth::JwtMiddleware;
-use crate::{
-	models::{AvitoAd, AvitoAdData, AvitoAdResponse},
-	AppState,
-};
+use crate::{models::AvitoAdField, AppState};
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-#[actix_web::get("/avito_ads/{id}")]
-pub async fn get_avito_ad_by_id(
+#[actix_web::get("/avito/ad_fields/{id}")]
+pub async fn get_avito_ad_field_by_id(
 	user: JwtMiddleware,
 	path: web::Path<String>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-	let ad_id = match path.parse::<Uuid>() {
+	let field_id = match path.parse::<Uuid>() {
 		Ok(id) => id,
 		Err(_) => {
 			return Ok(HttpResponse::BadRequest().json(json!({
@@ -26,30 +23,44 @@ pub async fn get_avito_ad_by_id(
 
 	let mut conn = data.db.get().unwrap();
 
-	// First, get the ad
-	let avito_ad = match crate::schema::avito_ads::table
-		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
-		.first::<AvitoAd>(&mut conn)
+	// First, get the ad field
+	let avito_ad_field = match crate::schema::avito_ad_fields::table
+		.filter(crate::schema::avito_ad_fields::field_id.eq(field_id))
+		.first::<AvitoAdField>(&mut conn)
 	{
-		Ok(avito_ad) => avito_ad,
+		Ok(avito_ad_field) => avito_ad_field,
 		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::NotFound().json(json!({
 				"status": "fail",
-				"message": "Avito ad not found"
+				"message": "Avito ad field not found"
 			})));
 		}
 		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
-				"message": "Failed to fetch avito ad"
+				"message": "Failed to fetch avito ad field"
 			})));
 		}
 	};
 
-	// Since we can't join directly anymore, we need to check permissions differently
-	// We need to get the feed and check if the user has access to the account that owns the feed
+	// Check if the user has access to the account that owns the ad field
+	// Get the ad that owns this field
+	let ad = match crate::schema::avito_ads::table
+		.filter(crate::schema::avito_ads::ad_id.eq(avito_ad_field.ad_id))
+		.first::<crate::models::AvitoAd>(&mut conn)
+	{
+		Ok(ad) => ad,
+		Err(_) => {
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch ad information"
+			})));
+		}
+	};
+
+	// Get the feed that owns this ad
 	let feed = match crate::schema::avito_feeds::table
-		.filter(crate::schema::avito_feeds::feed_id.eq(avito_ad.feed_id))
+		.filter(crate::schema::avito_feeds::feed_id.eq(ad.feed_id))
 		.first::<crate::models::AvitoFeed>(&mut conn)
 	{
 		Ok(feed) => feed,
@@ -80,12 +91,14 @@ pub async fn get_avito_ad_by_id(
 	if !user_has_access {
 		return Ok(HttpResponse::Forbidden().json(json!({
 			"status": "fail",
-			"message": "You don't have permission to access this ad"
+			"message": "You don't have permission to access this ad field"
 		})));
 	}
 
-	Ok(HttpResponse::Ok().json(AvitoAdResponse {
-		status: "success".to_string(),
-		data: AvitoAdData { avito_ad },
-	}))
+	Ok(HttpResponse::Ok().json(json!({
+		"status": "success",
+		"data": {
+			"avito_ad_field": avito_ad_field
+		}
+	})))
 }

@@ -10,5 +10,5 @@ pub mod update_avito_feed;
 use actix_web::web;
 
 pub fn avito_feeds_config(cfg: &mut web::ServiceConfig) {
-    cfg.configure(config::avito_feed_routes);
+	cfg.configure(config::avito_feed_routes);
 }

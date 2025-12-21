@@ -14,7 +14,8 @@ pub async fn create_avito_ad(
 	body: web::Json<CreateAvitoAd>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-	if body.feed_id.is_nil() { // Check if feed_id is valid (not zero UUID)
+	if body.feed_id.is_nil() {
+		// Check if feed_id is valid (not zero UUID)
 		return Ok(HttpResponse::BadRequest().json(json!({
 			"status": "error",
 			"message": "Feed ID is required"

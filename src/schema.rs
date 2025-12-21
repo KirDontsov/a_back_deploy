@@ -29,30 +29,30 @@ diesel::table! {
 }
 
 diesel::table! {
-    avito_ads (ad_id) {
-        ad_id -> Uuid,
-        feed_id -> Uuid,
-        avito_ad_id -> Nullable<Varchar>,
-        parsed_id -> Nullable<Varchar>,
-        status -> Nullable<Varchar>,
-        created_ts -> Timestamp,
-    }
+	avito_ads (ad_id) {
+		ad_id -> Uuid,
+		feed_id -> Uuid,
+		avito_ad_id -> Nullable<Varchar>,
+		parsed_id -> Nullable<Varchar>,
+		status -> Nullable<Varchar>,
+		created_ts -> Timestamp,
+	}
 }
 
 diesel::joinable!(avito_accounts -> users (user_id));
 // Removed join between avito_ads and avito_accounts since account_id field was removed from avito_ads
-diesel::joinable!(avito_ads -> avito_feeds (feed_id));  // Added relationship between ads and feeds
+diesel::joinable!(avito_ads -> avito_feeds (feed_id)); // Added relationship between ads and feeds
 diesel::joinable!(avito_feeds -> avito_accounts (account_id));
 diesel::joinable!(avito_requests -> users (user_id));
 
 diesel::table! {
-    avito_feeds (feed_id) {
-        feed_id -> Uuid,
-        account_id -> Uuid,
-        category -> Varchar,
-        created_ts -> Timestamptz,
-        updated_ts -> Nullable<Timestamptz>,
-    }
+	avito_feeds (feed_id) {
+		feed_id -> Uuid,
+		account_id -> Uuid,
+		category -> Varchar,
+		created_ts -> Timestamptz,
+		updated_ts -> Nullable<Timestamptz>,
+	}
 }
 
 diesel::table! {
@@ -118,23 +118,23 @@ diesel::table! {
 	}
 }
 diesel::table! {
-    avito_ad_fields (field_id) {
-        field_id -> Uuid,
-        ad_id -> Uuid,
-        tag -> Nullable<Varchar>,
-        data_type -> Nullable<Varchar>,
-        field_type -> Nullable<Varchar>,
-        created_ts -> Timestamptz,
-    }
+	avito_ad_fields (field_id) {
+		field_id -> Uuid,
+		ad_id -> Uuid,
+		tag -> Nullable<Varchar>,
+		data_type -> Nullable<Varchar>,
+		field_type -> Nullable<Varchar>,
+		created_ts -> Timestamptz,
+	}
 }
 
 diesel::table! {
-    avito_ad_field_values (field_value_id) {
-        field_value_id -> Uuid,
-        field_id -> Nullable<Uuid>,
-        value -> Nullable<Text>,
-        created_ts -> Timestamptz,
-    }
+	avito_ad_field_values (field_value_id) {
+		field_value_id -> Uuid,
+		field_id -> Nullable<Uuid>,
+		value -> Nullable<Text>,
+		created_ts -> Timestamptz,
+	}
 }
 
 diesel::joinable!(avito_ad_field_values -> avito_ad_fields (field_id));

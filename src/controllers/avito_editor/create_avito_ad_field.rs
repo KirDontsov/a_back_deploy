@@ -1,53 +1,51 @@
 use crate::jwt_auth::JwtMiddleware;
 use crate::{
-	models::{AvitoAd, AvitoAdData, AvitoAdResponse, UpdateAvitoAd},
+	models::{AvitoAdField, CreateAvitoAdField},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
+use chrono::Utc;
 use diesel::prelude::*;
 use serde_json::json;
-use uuid::Uuid;
 
-#[actix_web::patch("/avito_ads/{id}")]
-pub async fn update_avito_ad(
+#[actix_web::post("/avito/ad_fields")]
+pub async fn create_avito_ad_field(
 	user: JwtMiddleware,
-	path: web::Path<String>,
-	body: web::Json<UpdateAvitoAd>,
+	body: web::Json<CreateAvitoAdField>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-	let ad_id = match path.parse::<Uuid>() {
-		Ok(id) => id,
-		Err(_) => {
-			return Ok(HttpResponse::BadRequest().json(json!({
-				"status": "fail",
-				"message": "Invalid ID format"
-			})));
-		}
-	};
+	if body.ad_id.is_nil() {
+		// Check if ad_id is valid (not zero UUID)
+		return Ok(HttpResponse::BadRequest().json(json!({
+			"status": "error",
+			"message": "Ad ID is required"
+		})));
+	}
 
 	let mut conn = data.db.get().unwrap();
 
-	// First, get the ad to check if it exists
+	// Check if the user has access to the ad (through the feed and account hierarchy)
+	// First get the ad
 	let avito_ad = match crate::schema::avito_ads::table
-		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
-		.first::<AvitoAd>(&mut conn)
+		.filter(crate::schema::avito_ads::ad_id.eq(body.ad_id))
+		.first::<crate::models::AvitoAd>(&mut conn)
 	{
 		Ok(ad) => ad,
 		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::NotFound().json(json!({
 				"status": "fail",
-				"message": "Avito ad not found"
+				"message": "Ad not found"
 			})));
 		}
 		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
-				"message": "Failed to fetch avito ad"
+				"message": "Failed to fetch ad"
 			})));
 		}
 	};
 
-	// Check if the user has access to the account that owns the feed containing this ad
+	// Get the feed that owns this ad
 	let feed = match crate::schema::avito_feeds::table
 		.filter(crate::schema::avito_feeds::feed_id.eq(avito_ad.feed_id))
 		.first::<crate::models::AvitoFeed>(&mut conn)
@@ -80,33 +78,38 @@ pub async fn update_avito_ad(
 	if !user_has_access {
 		return Ok(HttpResponse::Forbidden().json(json!({
 			"status": "fail",
-			"message": "You don't have permission to update this ad"
+			"message": "You don't have permission to create fields for this ad"
 		})));
 	}
 
-	// Update the ad
-	let updated_avito_ad = diesel::update(crate::schema::avito_ads::table.find(ad_id))
-		.set((
-			body.status
-				.as_ref()
-				.map(|s| crate::schema::avito_ads::status.eq(s)),
-			body.avito_ad_id
-				.as_ref()
-				.map(|a| crate::schema::avito_ads::avito_ad_id.eq(a)),
-			body.parsed_id
-				.as_ref()
-				.map(|p| crate::schema::avito_ads::parsed_id.eq(p)),
+	// User has access to this ad, proceed with creating the ad field
+	let new_avito_ad_field = diesel::insert_into(crate::schema::avito_ad_fields::table)
+		.values((
+			crate::schema::avito_ad_fields::ad_id.eq(body.ad_id),
+			crate::schema::avito_ad_fields::tag.eq(&body.tag),
+			crate::schema::avito_ad_fields::data_type.eq(&body.data_type),
+			crate::schema::avito_ad_fields::field_type.eq(&body.field_type),
+			crate::schema::avito_ad_fields::created_ts.eq(Utc::now()),
 		))
-		.get_result::<AvitoAd>(&mut conn);
+		.get_result::<AvitoAdField>(&mut conn);
 
-	match updated_avito_ad {
-		Ok(avito_ad) => Ok(HttpResponse::Ok().json(AvitoAdResponse {
-			status: "success".to_string(),
-			data: AvitoAdData { avito_ad },
-		})),
+	match new_avito_ad_field {
+		Ok(avito_ad_field) => Ok(HttpResponse::Ok().json(json!({
+			"status": "success",
+			"data": {
+				"avito_ad_field": avito_ad_field
+			}
+		}))),
+		Err(diesel::result::Error::DatabaseError(
+			diesel::result::DatabaseErrorKind::ForeignKeyViolation,
+			_,
+		)) => Ok(HttpResponse::BadRequest().json(json!({
+			"status": "fail",
+			"message": "Ad ID does not exist"
+		}))),
 		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 			"status": "error",
-			"message": "Failed to update avito ad"
+			"message": "Failed to create avito ad field"
 		}))),
 	}
 }

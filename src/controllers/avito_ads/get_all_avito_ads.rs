@@ -16,7 +16,7 @@ pub async fn get_all_avito_ads(
 
 	// Get all feeds that belong to the user's accounts
 	let user_feeds = match crate::schema::avito_feeds::table
-	.inner_join(crate::schema::avito_accounts::table)
+		.inner_join(crate::schema::avito_accounts::table)
 		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
 		.select(crate::schema::avito_feeds::feed_id)
 		.load::<uuid::Uuid>(&mut conn)

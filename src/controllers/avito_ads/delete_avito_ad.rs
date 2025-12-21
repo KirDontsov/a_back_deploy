@@ -28,13 +28,13 @@ pub async fn delete_avito_ad(
 		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
 		.first::<AvitoAd>(&mut conn)
 	{
-	Ok(ad) => ad,
+		Ok(ad) => ad,
 		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::NotFound().json(json!({
 				"status": "fail",
 				"message": "Avito ad not found"
 			})));
-		},
+		}
 		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
@@ -54,7 +54,7 @@ pub async fn delete_avito_ad(
 				"status": "error",
 				"message": "Failed to fetch feed information"
 			})));
-	}
+		}
 	};
 
 	// Check if the user has access to the account that owns this feed
@@ -65,7 +65,7 @@ pub async fn delete_avito_ad(
 	{
 		Ok(_) => true,
 		Err(diesel::result::Error::NotFound) => false,
-	Err(_) => {
+		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
 				"message": "Failed to verify permissions"

@@ -1,7 +1,7 @@
 pub mod avito_accounts;
-pub mod avito_ads;
-pub mod avito_ad_fields;
 pub mod avito_ad_field_values;
+pub mod avito_ad_fields;
+pub mod avito_ads;
 pub mod avito_analytics_ads;
 pub mod avito_client_types;
 pub mod avito_feed_responses;
@@ -11,9 +11,9 @@ pub mod avito_requests;
 pub mod users;
 
 pub use self::avito_accounts::*;
-pub use self::avito_ads::*;
-pub use self::avito_ad_fields::*;
 pub use self::avito_ad_field_values::*;
+pub use self::avito_ad_fields::*;
+pub use self::avito_ads::*;
 pub use self::avito_analytics_ads::*;
 pub use self::avito_client_types::*;
 pub use self::avito_feed_responses::*;

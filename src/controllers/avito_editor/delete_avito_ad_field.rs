@@ -1,21 +1,17 @@
 use crate::jwt_auth::JwtMiddleware;
-use crate::{
-	models::{AvitoAd, AvitoAdData, AvitoAdResponse, UpdateAvitoAd},
-	AppState,
-};
+use crate::{models::AvitoAdField, AppState};
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-#[actix_web::patch("/avito_ads/{id}")]
-pub async fn update_avito_ad(
+#[actix_web::delete("/avito/ad_fields/{id}")]
+pub async fn delete_avito_ad_field(
 	user: JwtMiddleware,
 	path: web::Path<String>,
-	body: web::Json<UpdateAvitoAd>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
-	let ad_id = match path.parse::<Uuid>() {
+	let field_id = match path.parse::<Uuid>() {
 		Ok(id) => id,
 		Err(_) => {
 			return Ok(HttpResponse::BadRequest().json(json!({
@@ -27,29 +23,44 @@ pub async fn update_avito_ad(
 
 	let mut conn = data.db.get().unwrap();
 
-	// First, get the ad to check if it exists
-	let avito_ad = match crate::schema::avito_ads::table
-		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
-		.first::<AvitoAd>(&mut conn)
+	// First, get the ad field to check if it exists
+	let avito_ad_field = match crate::schema::avito_ad_fields::table
+		.filter(crate::schema::avito_ad_fields::field_id.eq(field_id))
+		.first::<AvitoAdField>(&mut conn)
 	{
-		Ok(ad) => ad,
+		Ok(field) => field,
 		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::NotFound().json(json!({
 				"status": "fail",
-				"message": "Avito ad not found"
+				"message": "Avito ad field not found"
 			})));
 		}
 		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
-				"message": "Failed to fetch avito ad"
+				"message": "Failed to fetch avito ad field"
 			})));
 		}
 	};
 
-	// Check if the user has access to the account that owns the feed containing this ad
+	// Check if the user has access to the account that owns the ad field
+	// Get the ad that owns this field
+	let ad = match crate::schema::avito_ads::table
+		.filter(crate::schema::avito_ads::ad_id.eq(avito_ad_field.ad_id))
+		.first::<crate::models::AvitoAd>(&mut conn)
+	{
+		Ok(ad) => ad,
+		Err(_) => {
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch ad information"
+			})));
+		}
+	};
+
+	// Get the feed that owns this ad
 	let feed = match crate::schema::avito_feeds::table
-		.filter(crate::schema::avito_feeds::feed_id.eq(avito_ad.feed_id))
+		.filter(crate::schema::avito_feeds::feed_id.eq(ad.feed_id))
 		.first::<crate::models::AvitoFeed>(&mut conn)
 	{
 		Ok(feed) => feed,
@@ -80,33 +91,26 @@ pub async fn update_avito_ad(
 	if !user_has_access {
 		return Ok(HttpResponse::Forbidden().json(json!({
 			"status": "fail",
-			"message": "You don't have permission to update this ad"
+			"message": "You don't have permission to delete this ad field"
 		})));
 	}
 
-	// Update the ad
-	let updated_avito_ad = diesel::update(crate::schema::avito_ads::table.find(ad_id))
-		.set((
-			body.status
-				.as_ref()
-				.map(|s| crate::schema::avito_ads::status.eq(s)),
-			body.avito_ad_id
-				.as_ref()
-				.map(|a| crate::schema::avito_ads::avito_ad_id.eq(a)),
-			body.parsed_id
-				.as_ref()
-				.map(|p| crate::schema::avito_ads::parsed_id.eq(p)),
-		))
-		.get_result::<AvitoAd>(&mut conn);
+	// Delete the ad field
+	let deleted_count =
+		diesel::delete(crate::schema::avito_ad_fields::table.find(field_id)).execute(&mut conn);
 
-	match updated_avito_ad {
-		Ok(avito_ad) => Ok(HttpResponse::Ok().json(AvitoAdResponse {
-			status: "success".to_string(),
-			data: AvitoAdData { avito_ad },
-		})),
+	match deleted_count {
+		Ok(count) if count > 0 => Ok(HttpResponse::Ok().json(json!({
+			"status": "success",
+			"message": "Avito ad field deleted successfully"
+		}))),
+		Ok(_) => Ok(HttpResponse::NotFound().json(json!({
+			"status": "fail",
+			"message": "Avito ad field not found"
+		}))),
 		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 			"status": "error",
-			"message": "Failed to update avito ad"
+			"message": "Failed to delete avito ad field"
 		}))),
 	}
 }

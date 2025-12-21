@@ -14,8 +14,9 @@ use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use dotenv::dotenv;
 use lapin::Channel;
-
-use crate::controllers::websocket::WebSocketConnections;
+use crate::controllers::rabbitmq_consumer::start_rabbitmq_consumer;
+use crate::controllers::rabbitmq_publisher::publisher::establish_rabbitmq_connection;
+use crate::controllers::websocket::{websocket_handler, WebSocketConnections};
 
 pub struct AppState {
 	db: r2d2::Pool<ConnectionManager<diesel::PgConnection>>,
@@ -40,8 +41,7 @@ async fn main() -> std::io::Result<()> {
 		.build(manager)
 		.expect("Failed to create database pool");
 
-	// Test the connection
-	use diesel::Connection;
+	// Test the database connection
 	match pool.get() {
 		Ok(mut connection) => {
 			match diesel::select(diesel::dsl::sql::<diesel::sql_types::Integer>("1"))
@@ -61,18 +61,13 @@ async fn main() -> std::io::Result<()> {
 	};
 
 	// Establish RabbitMQ connection (optional)
-	use crate::controllers::rabbitmq_publisher::publisher::establish_rabbitmq_connection;
-	println!("Attempting to connect to RabbitMQ...");
-	log::info!("Attempting to connect to RabbitMQ...");
 	let rabbitmq_channel = match establish_rabbitmq_connection().await {
 		Ok(channel) => {
 			println!("✅ Connected to RabbitMQ successfully!");
-			log::info!("✅ Connected to RabbitMQ successfully!");
 			Some(channel)
 		}
 		Err(e) => {
 			eprintln!("⚠️  Warning: Failed to connect to RabbitMQ: {:?}. The application will continue to run but without RabbitMQ functionality.", e);
-			log::warn!("⚠️ Warning: Failed to connect to RabbitMQ: {:?}. The application will continue to run but without RabbitMQ functionality.", e);
 			None
 		}
 	};
@@ -84,10 +79,7 @@ async fn main() -> std::io::Result<()> {
 	// Start RabbitMQ consumer with WebSocket server
 	let ws_server_clone = ws_server.clone();
 	let pool_clone = pool.clone();
-	tokio::spawn(async move {
-		crate::controllers::rabbitmq_consumer::start_rabbitmq_consumer(pool_clone, ws_server_clone)
-			.await
-	});
+	tokio::spawn(async move { start_rabbitmq_consumer(pool_clone, ws_server_clone).await });
 
 	println!("✅ Server started successfully on http://0.0.0.0:8081");
 
@@ -102,10 +94,10 @@ async fn main() -> std::io::Result<()> {
 			.app_data(ws_server_data.clone())
 			.service(web::resource("/api/ws").route(web::get().to(
 				|req: HttpRequest, body: web::Payload, data: web::Data<WebSocketConnections>| async move {
-					crate::controllers::websocket::websocket_handler(req, body, data).await
+					websocket_handler(req, body, data).await
 				},
 			)))
-			.configure(controllers::config)
+			.configure(controllers::config::config)
 			.wrap(Cors::permissive())
 			.wrap(Logger::default())
 			.route(

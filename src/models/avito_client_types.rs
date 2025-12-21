@@ -20,6 +20,24 @@ pub struct GetAvitoItemsParams {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct GetCategoriesTreeParams {
+	pub avito_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AvitoEditorCategoryFieldsParams {
+	pub avito_token: String,
+	pub avito_slug: String,
+}
+
+// Define a temporary struct for car marks since the table may not exist
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AvitoCarMark {
+	pub car_mark_id: i32,
+	pub value: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct GetItemAnalyticsBody {
 	pub avito_token: String,
 	pub account_id: String,
