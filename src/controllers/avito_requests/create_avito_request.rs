@@ -55,7 +55,7 @@ pub async fn create_avito_request(
 		request: new_request.request.clone(),
 		city: new_request.city.clone(),
 		coords: new_request.coords.clone(),
-		radius: new_request.radius,
+		radius: new_request.radius.clone(),
 		district: new_request.district.clone(),
 		user_id: user.user_id,
 	};
@@ -73,7 +73,7 @@ pub async fn create_avito_request(
 				"request": avito_request.request,
 				"city": avito_request.city.as_deref().unwrap_or(""),
 				"coords": avito_request.coords.as_deref().unwrap_or(""),
-				"radius": avito_request.radius.map(|r| r.to_string()).unwrap_or_else(|| "".to_string()),
+				"radius": avito_request.radius.as_deref().unwrap_or(""),
 				"district": avito_request.district.as_deref().unwrap_or(""),
 				"created_ts": avito_request.created_ts.to_string(),
 			});

@@ -14,7 +14,7 @@ use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use dotenv::dotenv;
 use lapin::Channel;
-use crate::controllers::rabbitmq_consumer::start_rabbitmq_consumer;
+use crate::controllers::rabbitmq_consumer::{start_ai_processing_consumer, start_rabbitmq_consumer};
 use crate::controllers::rabbitmq_publisher::publisher::establish_rabbitmq_connection;
 use crate::controllers::websocket::{websocket_handler, WebSocketConnections};
 
@@ -80,6 +80,10 @@ async fn main() -> std::io::Result<()> {
 	let ws_server_clone = ws_server.clone();
 	let pool_clone = pool.clone();
 	tokio::spawn(async move { start_rabbitmq_consumer(pool_clone, ws_server_clone).await });
+	
+	// Start AI processing consumer with WebSocket server
+	let ws_server_clone_ai = ws_server.clone();
+	tokio::spawn(async move { start_ai_processing_consumer(ws_server_clone_ai).await });
 
 	println!("✅ Server started successfully on http://0.0.0.0:8081");
 

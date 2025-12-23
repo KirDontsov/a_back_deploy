@@ -40,8 +40,7 @@ diesel::table! {
 }
 
 diesel::joinable!(avito_accounts -> users (user_id));
-// Removed join between avito_ads and avito_accounts since account_id field was removed from avito_ads
-diesel::joinable!(avito_ads -> avito_feeds (feed_id)); // Added relationship between ads and feeds
+diesel::joinable!(avito_ads -> avito_feeds (feed_id));
 diesel::joinable!(avito_feeds -> avito_accounts (account_id));
 diesel::joinable!(avito_requests -> users (user_id));
 
@@ -61,7 +60,7 @@ diesel::table! {
 		request -> Text,
 		city -> Nullable<Text>,
 		coords -> Nullable<Text>,
-		radius -> Nullable<Integer>,
+		radius -> Nullable<Text>,
 		district -> Nullable<Text>,
 		created_ts -> Timestamp,
 		updated_ts -> Nullable<Timestamp>,

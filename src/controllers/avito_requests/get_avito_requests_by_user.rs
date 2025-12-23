@@ -7,7 +7,7 @@ use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use diesel::query_dsl::methods::{LimitDsl, OffsetDsl};
 use serde::Deserialize;
-
+use serde_json::json;
 #[derive(Deserialize)]
 pub struct PaginationParams {
 	page: Option<u32>,
@@ -21,32 +21,52 @@ pub async fn get_avito_requests_by_user(
 	pagination: web::Query<PaginationParams>,
 	user: JwtMiddleware,
 ) -> Result<HttpResponse> {
-	let mut conn = data.db.get().unwrap();
+	let mut conn = match data.db.get() {
+		Ok(conn) => conn,
+		Err(e) => {
+			eprintln!("Error getting database connection: {:?}", e);
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to establish database connection"
+			})));
+		}
+	};
 
 	let page = pagination.page.unwrap_or(1).max(1);
 	let limit = pagination.limit.unwrap_or(10).min(100); // max 100 per page
 	let offset = (page - 1) * limit;
 
-	use diesel::query_dsl::methods::{LimitDsl, OffsetDsl};
-
 	// Get total count for the specific user
-	let total_count: i64 = crate::schema::avito_requests::table
+	let total_count: i64 = match crate::schema::avito_requests::table
 		.filter(crate::schema::avito_requests::user_id.eq(user.user_id))
 		.count()
-		.get_result(&mut conn)
-		.unwrap_or(0);
+		.get_result(&mut conn) {
+			Ok(count) => count,
+			Err(e) => {
+				eprintln!("Error getting count: {:?}", e);
+				return Ok(HttpResponse::InternalServerError().json(json!({
+					"status": "error",
+					"message": "Failed to fetch avito requests count"
+				})));
+			}
+		};
 
 	// Get paginated results for the specific user
-	let avito_requests: Vec<AvitoRequest> = LimitDsl::limit(
-		OffsetDsl::offset(
-			crate::schema::avito_requests::table
-				.filter(crate::schema::avito_requests::user_id.eq(user.user_id)),
-			offset as i64,
-		),
-		limit as i64,
-	)
-	.load::<AvitoRequest>(&mut conn)
-	.unwrap_or_default();
+	let base_query = crate::schema::avito_requests::table
+		.filter(crate::schema::avito_requests::user_id.eq(user.user_id));
+	let query_with_offset = diesel::query_dsl::methods::OffsetDsl::offset(base_query, offset as i64);
+	let query_with_limit = diesel::query_dsl::methods::LimitDsl::limit(query_with_offset, limit as i64);
+	
+	let avito_requests: Vec<AvitoRequest> = match query_with_limit.load::<AvitoRequest>(&mut conn) {
+		Ok(requests) => requests,
+		Err(e) => {
+			eprintln!("Error getting requests: {:?}", e);
+			return Ok(HttpResponse::InternalServerError().json(json!({
+				"status": "error",
+				"message": "Failed to fetch avito requests"
+			})));
+		}
+	};
 
 	Ok(HttpResponse::Ok().json(AvitoRequestsResponse {
 		status: "success".to_string(),

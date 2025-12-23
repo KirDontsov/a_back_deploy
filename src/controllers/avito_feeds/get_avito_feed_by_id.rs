@@ -180,12 +180,19 @@ pub async fn get_avito_feed_by_id(
 		}
 	}
 
-	// Attach fields to their respective ads
+	// Create a mapping from ad_id to fields for that ad to properly attach fields to ads
+	let mut ad_fields_map: std::collections::HashMap<Uuid, Vec<FieldResponse>> = std::collections::HashMap::new();
+	
 	for field in &fields_rows {
-		if let Some(ad) = ads_map.get_mut(&field.ad_id) {
-			if let Some(field_response) = fields_map.get(&field.field_id) {
-				ad.fields.push(field_response.clone());
-			}
+		if let Some(field_response) = fields_map.get(&field.field_id) {
+			ad_fields_map.entry(field.ad_id).or_insert_with(Vec::new).push(field_response.clone());
+		}
+	}
+	
+	// Attach the fields to their respective ads
+	for (ad_id, fields) in ad_fields_map {
+		if let Some(ad) = ads_map.get_mut(&ad_id) {
+			ad.fields = fields;
 		}
 	}
 

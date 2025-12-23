@@ -1,6 +1,7 @@
 use crate::controllers::auth;
 use crate::controllers::avito_accounts;
 use crate::controllers::avito_ads;
+use crate::controllers::avito_ai_processing;
 use crate::controllers::avito_client;
 use crate::controllers::avito_editor;
 use crate::controllers::avito_feeds;
@@ -14,6 +15,7 @@ pub fn config(conf: &mut web::ServiceConfig) {
 		.configure(users::users_config)
 		.configure(avito_accounts::avito_accounts_config)
 		.configure(avito_ads::avito_ads_config)
+		.configure(avito_ai_processing::avito_client_config)
 		.configure(avito_feeds::avito_feeds_config)
 		.configure(avito_requests::avito_requests_config)
 		.configure(avito_client::avito_client_config)

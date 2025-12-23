@@ -7,13 +7,35 @@ use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;
 
-// GET all accaunts avito requests
-#[actix_web::get("/avito_requests")]
+// GET all accounts avito requests (admin only)
+#[actix_web::get("/avito_requests/all")]
 pub async fn get_all_avito_requests(
 	data: web::Data<AppState>,
 	user: JwtMiddleware,
 ) -> Result<HttpResponse> {
 	let mut conn = data.db.get().unwrap();
+
+	// Check if user has admin role by fetching user from database
+	let current_user: crate::models::User = match crate::schema::users::table
+		.filter(crate::schema::users::id.eq(user.user_id))
+		.first(&mut conn)
+	{
+		Ok(u) => u,
+		Err(_) => {
+			return Ok(HttpResponse::Unauthorized().json(json!({
+				"status": "error",
+				"message": "User not found"
+			})));
+		}
+	};
+
+	// Check if user has admin role
+	if current_user.role.as_deref() != Some("admin") {
+	return Ok(HttpResponse::Forbidden().json(json!({
+			"status": "error",
+			"message": "Only admin users can access all requests"
+		})));
+	}
 
 	// Get total count
 	let total_count: i64 = crate::schema::avito_requests::table
@@ -29,7 +51,7 @@ pub async fn get_all_avito_requests(
 				count: total_count,
 			},
 		})),
-		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
+	Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
 				"message": "Failed to fetch avito requests"
 		}))),
