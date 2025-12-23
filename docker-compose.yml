@@ -73,16 +73,23 @@ services:
       postgres:
         condition: service_healthy
     volumes:
-      - ./clean_dump.sql:/tmp/clean_dump.sql
+      - .:/app_data:ro
     command: |
       sh -c "
         # Wait for database to be ready
         until pg_isready -h postgres -p 5432 -U admin; do
           sleep 1
         done
-        # Apply the SQL dump to the database
-        psql -h postgres -U admin -d postgres -f /tmp/clean_dump.sql
-        echo 'SQL dump has been applied to the database'
+        # Check if the SQL dump file exists and apply it if it does
+        if [ -f /app_data/clean_dump.sql ]; then
+          echo 'Found clean_dump.sql, applying to database...'
+          psql -h postgres -U admin -d postgres -f /app_data/clean_dump.sql
+          echo 'SQL dump has been applied to the database'
+        else
+          echo 'clean_dump.sql not found, initializing database with migrations only'
+          # Optionally run your application's database setup/migration here
+          # This might involve running diesel migrations or other setup commands
+        fi
       "
 
   app:
