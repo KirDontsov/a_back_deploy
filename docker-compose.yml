@@ -81,12 +81,12 @@ services:
           sleep 1
         done
         # Check if the SQL dump file exists and apply it if it does
-        if [ -f /app_data/clean_dump.sql ]; then
-          echo 'Found clean_dump.sql, applying to database...'
-          psql -h postgres -U admin -d postgres -f /app_data/clean_dump.sql
+        if [ -f /app_data/dump.sql ]; then
+          echo 'Found dump.sql, applying to database...'
+          psql -h postgres -U admin -d postgres -f /app_data/dump.sql
           echo 'SQL dump has been applied to the database'
         else
-          echo 'clean_dump.sql not found, initializing database with migrations only'
+          echo 'dump.sql not found, initializing database with migrations only'
           # Optionally run your application's database setup/migration here
           # This might involve running diesel migrations or other setup commands
         fi
