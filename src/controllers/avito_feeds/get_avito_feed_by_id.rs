@@ -1,8 +1,8 @@
 use crate::{
 	jwt_auth::JwtMiddleware,
 	models::{
-		ApiError, AvitoAd, AvitoAdField, AvitoAdFieldValue, AvitoFeed, FeedQueryParams,
-		FeedResponse, FieldResponse, FieldValueResponse,
+		ApiError, AvitoAd, AvitoAdField, AvitoAdFieldValue, AvitoFeed, FeedResponse, FieldResponse,
+		FieldValueResponse, PaginationParams, PaginationResponse, ResponseWithPagination,
 	},
 	AppState,
 };
@@ -16,9 +16,8 @@ use diesel::expression_methods::ExpressionMethods;
 use diesel::prelude::*;
 use diesel::{QueryDsl, SelectableHelper};
 use serde::Deserialize;
-use uuid::Uuid;
-
 use std::collections::HashMap;
+use uuid::Uuid;
 
 // Path parameter for feed_id
 #[derive(Deserialize)]
@@ -29,13 +28,13 @@ pub struct FeedIdPath {
 #[get("/avito/feeds/{feed_id}")]
 pub async fn get_avito_feed_by_id(
 	path: web::Path<FeedIdPath>,
-	opts: web::Query<FeedQueryParams>,
+	pagination: web::Query<PaginationParams>,
 	data: web::Data<AppState>,
 	_: JwtMiddleware,
 ) -> Result<HttpResponse, ApiError> {
 	let feed_id = path.feed_id;
-	let page = opts.page.unwrap_or(1);
-	let limit = opts.limit.unwrap_or(10);
+	let page = pagination.page.unwrap_or(1).max(1);
+	let limit = pagination.limit.unwrap_or(10).min(100); // max 100 per page
 	let offset = (page - 1) * limit;
 
 	let mut conn = data.db.get().unwrap();
@@ -54,16 +53,16 @@ pub async fn get_avito_feed_by_id(
 	let feed = match feed_row {
 		Some(feed) => feed,
 		None => {
-			return Ok(HttpResponse::Ok().json(serde_json::json!({
-				"status": "success",
-				"data": null,
-				"pagination": {
-					"page": page,
-					"limit": limit,
-					"total": 0,
-					"pages": 0
-				}
-			})));
+			return Ok(HttpResponse::Ok().json(ResponseWithPagination {
+				status: "success".to_string(),
+				data: serde_json::Value::Null,
+				pagination: PaginationResponse {
+					page,
+					limit,
+					total: 0,
+					pages: 0,
+				},
+			}));
 		}
 	};
 
@@ -181,14 +180,17 @@ pub async fn get_avito_feed_by_id(
 	}
 
 	// Create a mapping from ad_id to fields for that ad to properly attach fields to ads
-	let mut ad_fields_map: std::collections::HashMap<Uuid, Vec<FieldResponse>> = std::collections::HashMap::new();
-	
+	let mut ad_fields_map: HashMap<Uuid, Vec<FieldResponse>> = HashMap::new();
+
 	for field in &fields_rows {
 		if let Some(field_response) = fields_map.get(&field.field_id) {
-			ad_fields_map.entry(field.ad_id).or_insert_with(Vec::new).push(field_response.clone());
+			ad_fields_map
+				.entry(field.ad_id)
+				.or_insert_with(Vec::new)
+				.push(field_response.clone());
 		}
 	}
-	
+
 	// Attach the fields to their respective ads
 	for (ad_id, fields) in ad_fields_map {
 		if let Some(ad) = ads_map.get_mut(&ad_id) {
@@ -213,14 +215,21 @@ pub async fn get_avito_feed_by_id(
 		ads: ads_vec,
 	};
 
-	Ok(HttpResponse::Ok().json(serde_json::json!({
-		"status": "success",
-		"data": feed_response,
-		"pagination": {
-			"page": page,
-			"limit": limit,
-			"total": total_ads as u32,
-			"pages": (total_ads as f64 / limit as f64).ceil() as u32
-		}
-	})))
+	// Calculate pages
+	let pages = if limit > 0 {
+		((total_ads as f64) / (limit as f64)).ceil() as u32
+	} else {
+		1
+	};
+
+	Ok(HttpResponse::Ok().json(ResponseWithPagination {
+		status: "success".to_string(),
+		data: feed_response,
+		pagination: PaginationResponse {
+			page,
+			limit,
+			total: total_ads as i64, // Using i64 to match the expected type
+			pages,
+		},
+	}))
 }

@@ -1,5 +1,5 @@
 use crate::schema::avito_ads;
-use chrono::{NaiveDateTime};
+use chrono::NaiveDateTime;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -43,13 +43,6 @@ pub struct AvitoAdResponse {
 #[derive(Serialize)]
 pub struct AvitoAdData {
 	pub avito_ad: AvitoAd,
-}
-
-#[derive(Serialize)]
-pub struct AvitoAdsResponse {
-	pub status: String,
-	pub results: usize,
-	pub data: AvitoAdsData,
 }
 
 #[derive(Serialize)]

@@ -77,20 +77,6 @@ pub struct AvitoRequestData {
 }
 
 #[derive(Serialize)]
-pub struct AvitoRequestsResponse {
-	pub status: String,
-	pub data: AvitoRequestsDataWithCount,
-}
-
-#[derive(Serialize)]
 pub struct AvitoRequestsData {
 	pub avito_requests: Vec<AvitoRequest>,
-}
-
-#[derive(Serialize)]
-pub struct AvitoRequestsDataWithCount {
-	#[serde(rename = "avito_requests")]
-	pub avito_requests: Vec<AvitoRequest>,
-	#[serde(rename = "count")]
-	pub count: i64,
 }

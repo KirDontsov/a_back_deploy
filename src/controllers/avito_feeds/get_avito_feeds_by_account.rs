@@ -1,6 +1,6 @@
 use crate::{
 	jwt_auth::JwtMiddleware,
-	models::{AvitoFeed, AvitoFeedsDataWithCount, AvitoFeedsResponse},
+	models::{AvitoFeed, PaginationParams, PaginationResponse, ResponseWithPagination},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
@@ -14,12 +14,6 @@ pub struct AccountIdRequest {
 	pub account_id: Uuid,
 }
 
-#[derive(Deserialize)]
-pub struct PaginationParams {
-	page: Option<u32>,
-	limit: Option<u32>,
-}
-
 // GET all avito feeds by specific account_id via POST request body
 #[actix_web::post("/avito/feeds")]
 pub async fn get_avito_feeds_by_account(
@@ -31,11 +25,6 @@ pub async fn get_avito_feeds_by_account(
 	let mut conn = data.db.get().unwrap();
 
 	let account_id = body.account_id;
-	let page = pagination.page.unwrap_or(1).max(1);
-	let limit = pagination.limit.unwrap_or(10).min(100); // max 100 per page
-	let offset = (page - 1) * limit;
-
-	use diesel::query_dsl::methods::{LimitDsl, OffsetDsl};
 
 	// Get total count for the specific account
 	let total_count: i64 = crate::schema::avito_feeds::table
@@ -43,6 +32,17 @@ pub async fn get_avito_feeds_by_account(
 		.count()
 		.get_result(&mut conn)
 		.unwrap_or(0);
+
+	let page = pagination.page.unwrap_or(1).max(1);
+	let limit = pagination.limit.unwrap_or(10).min(100); // max 100 per page
+	let offset = (page - 1) * limit;
+
+	// Calculate pages
+	let pages = if limit > 0 {
+		((total_count as f64) / (limit as f64)).ceil() as u32
+	} else {
+		1
+	};
 
 	// Get paginated results for the specific account
 	let avito_feeds_result = LimitDsl::limit(
@@ -56,11 +56,14 @@ pub async fn get_avito_feeds_by_account(
 	.load::<AvitoFeed>(&mut conn);
 
 	match avito_feeds_result {
-		Ok(avito_feeds) => Ok(HttpResponse::Ok().json(AvitoFeedsResponse {
+		Ok(avito_feeds) => Ok(HttpResponse::Ok().json(ResponseWithPagination {
 			status: "success".to_string(),
-			data: AvitoFeedsDataWithCount {
-				avito_feeds,
-				count: total_count,
+			data: avito_feeds,
+			pagination: PaginationResponse {
+				page,
+				limit,
+				total: total_count,
+				pages,
 			},
 		})),
 		Err(e) => {

@@ -1,10 +1,7 @@
 use crate::controllers::rabbitmq_publisher::publisher::publish_avito_request;
 use crate::jwt_auth::JwtMiddleware;
 use crate::{
-	models::{
-		AvitoRequest, AvitoRequestData, AvitoRequestResponse, CreateAvitoRequestJson,
-		CreateAvitoRequestWithUserId,
-	},
+	models::{AvitoRequest, CreateAvitoRequestJson, CreateAvitoRequestWithUserId},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
@@ -51,7 +48,7 @@ pub async fn create_avito_request(
 	let mut conn = data.db.get().unwrap();
 
 	// Create a struct that includes the user_id from JWT middleware
-	let new_request_with_user_id = crate::models::CreateAvitoRequestWithUserId {
+	let new_request_with_user_id = CreateAvitoRequestWithUserId {
 		request: new_request.request.clone(),
 		city: new_request.city.clone(),
 		coords: new_request.coords.clone(),

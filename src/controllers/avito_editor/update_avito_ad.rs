@@ -1,15 +1,12 @@
 use crate::jwt_auth::JwtMiddleware;
-use crate::{
-	models::{AvitoAd, UpdateAvitoAd},
-	AppState,
-};
+use crate::{models::AvitoAd, AppState};
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::models::{AvitoAdWithFields, AvitoAdFieldWithValues, AvitoAdWithFieldsResponse};
+use super::models::{AvitoAdFieldWithValues, AvitoAdWithFields, AvitoAdWithFieldsResponse};
 
 #[derive(Deserialize)]
 struct UpdateAvitoAdWithFields {
@@ -63,21 +60,20 @@ pub async fn update_avito_ad(
 	// Check if the user has access to the ad (through the feed and account hierarchy)
 	let ad_exists = match crate::schema::avito_ads::table
 		.inner_join(
-			crate::schema::avito_feeds::table
-				.inner_join(crate::schema::avito_accounts::table),
+			crate::schema::avito_feeds::table.inner_join(crate::schema::avito_accounts::table),
 		)
-	.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
+		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
 		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
 		.select(crate::schema::avito_ads::ad_id)
 		.first::<Uuid>(&mut conn)
 	{
 		Ok(id) => id,
-	Err(diesel::result::Error::NotFound) => {
+		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::Forbidden().json(json!({
 				"status": "fail",
 				"message": "You don't have permission to update this ad or it doesn't exist"
 			})));
-	}
+		}
 		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
@@ -103,10 +99,9 @@ pub async fn update_avito_ad(
 			if let Some(fields_to_update) = &body.fields_to_update {
 				for field_update in fields_to_update {
 					// Update the field itself
-					let _ = diesel::update(
-						crate::schema::avito_ad_fields::table
-							.filter(crate::schema::avito_ad_fields::field_id.eq(field_update.field_id)),
-					)
+					let _ = diesel::update(crate::schema::avito_ad_fields::table.filter(
+						crate::schema::avito_ad_fields::field_id.eq(field_update.field_id),
+					))
 					.set((
 						crate::schema::avito_ad_fields::tag.eq(&field_update.tag),
 						crate::schema::avito_ad_fields::data_type.eq(&field_update.data_type),
@@ -118,10 +113,14 @@ pub async fn update_avito_ad(
 					if let Some(values_to_update) = &field_update.values_to_update {
 						for value_update in values_to_update {
 							let _ = diesel::update(
-								crate::schema::avito_ad_field_values::table
-									.filter(crate::schema::avito_ad_field_values::field_value_id.eq(value_update.field_value_id)),
+								crate::schema::avito_ad_field_values::table.filter(
+									crate::schema::avito_ad_field_values::field_value_id
+										.eq(value_update.field_value_id),
+								),
 							)
-							.set(crate::schema::avito_ad_field_values::value.eq(&value_update.value))
+							.set(
+								crate::schema::avito_ad_field_values::value.eq(&value_update.value),
+							)
 							.execute(&mut conn);
 						}
 					}
@@ -129,13 +128,17 @@ pub async fn update_avito_ad(
 					// Create new field values if provided
 					if let Some(values_to_create) = &field_update.values_to_create {
 						for value_create in values_to_create {
-							let _ = diesel::insert_into(crate::schema::avito_ad_field_values::table)
-								.values((
-									crate::schema::avito_ad_field_values::field_id.eq(field_update.field_id),
-									crate::schema::avito_ad_field_values::value.eq(&value_create.value),
-									crate::schema::avito_ad_field_values::created_ts.eq(chrono::Utc::now()),
-								))
-								.get_result::<crate::models::AvitoAdFieldValue>(&mut conn);
+							let _ =
+								diesel::insert_into(crate::schema::avito_ad_field_values::table)
+									.values((
+										crate::schema::avito_ad_field_values::field_id
+											.eq(field_update.field_id),
+										crate::schema::avito_ad_field_values::value
+											.eq(&value_create.value),
+										crate::schema::avito_ad_field_values::created_ts
+											.eq(chrono::Utc::now()),
+									))
+									.get_result::<crate::models::AvitoAdFieldValue>(&mut conn);
 						}
 					}
 				}
@@ -145,26 +148,34 @@ pub async fn update_avito_ad(
 			if let Some(fields_to_create) = &body.fields_to_create {
 				for field_create in fields_to_create {
 					// Create the field
-					if let Ok(new_field) = diesel::insert_into(crate::schema::avito_ad_fields::table)
-						.values((
-							crate::schema::avito_ad_fields::ad_id.eq(avito_ad.ad_id),
-							crate::schema::avito_ad_fields::tag.eq(&field_create.tag),
-							crate::schema::avito_ad_fields::data_type.eq(&field_create.data_type),
-							crate::schema::avito_ad_fields::field_type.eq(&field_create.field_type),
-							crate::schema::avito_ad_fields::created_ts.eq(chrono::Utc::now()),
-						))
-						.get_result::<crate::models::AvitoAdField>(&mut conn)
+					if let Ok(new_field) =
+						diesel::insert_into(crate::schema::avito_ad_fields::table)
+							.values((
+								crate::schema::avito_ad_fields::ad_id.eq(avito_ad.ad_id),
+								crate::schema::avito_ad_fields::tag.eq(&field_create.tag),
+								crate::schema::avito_ad_fields::data_type
+									.eq(&field_create.data_type),
+								crate::schema::avito_ad_fields::field_type
+									.eq(&field_create.field_type),
+								crate::schema::avito_ad_fields::created_ts.eq(chrono::Utc::now()),
+							))
+							.get_result::<crate::models::AvitoAdField>(&mut conn)
 					{
 						// Create field values if provided
 						if let Some(values_to_create) = &field_create.values_to_create {
 							for value_create in values_to_create {
-								let _ = diesel::insert_into(crate::schema::avito_ad_field_values::table)
-									.values((
-										crate::schema::avito_ad_field_values::field_id.eq(new_field.field_id),
-										crate::schema::avito_ad_field_values::value.eq(&value_create.value),
-										crate::schema::avito_ad_field_values::created_ts.eq(chrono::Utc::now()),
-									))
-									.get_result::<crate::models::AvitoAdFieldValue>(&mut conn);
+								let _ = diesel::insert_into(
+									crate::schema::avito_ad_field_values::table,
+								)
+								.values((
+									crate::schema::avito_ad_field_values::field_id
+										.eq(new_field.field_id),
+									crate::schema::avito_ad_field_values::value
+										.eq(&value_create.value),
+									crate::schema::avito_ad_field_values::created_ts
+										.eq(chrono::Utc::now()),
+								))
+								.get_result::<crate::models::AvitoAdFieldValue>(&mut conn);
 							}
 						}
 					}
@@ -191,10 +202,7 @@ pub async fn update_avito_ad(
 					Err(_) => Vec::new(), // Continue with empty values if there's an error
 				};
 
-				fields_with_values.push(AvitoAdFieldWithValues {
-					field,
-					values,
-				});
+				fields_with_values.push(AvitoAdFieldWithValues { field, values });
 			}
 
 			let ad_with_fields = AvitoAdWithFields {
@@ -206,7 +214,7 @@ pub async fn update_avito_ad(
 				status: "success".to_string(),
 				data: ad_with_fields,
 			}))
-		},
+		}
 		Err(_) => Ok(HttpResponse::InternalServerError().json(json!({
 			"status": "error",
 			"message": "Failed to update avito ad"

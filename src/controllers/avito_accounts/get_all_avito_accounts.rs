@@ -1,36 +1,44 @@
 use crate::jwt_auth::JwtMiddleware;
 use crate::{
-	models::{AvitoAccount, AvitoAccountsData, AvitoAccountsResponse},
+	models::{AvitoAccount, PaginationParams, PaginationResponse, ResponseWithPagination},
 	AppState,
 };
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;
 
-#[derive(serde::Deserialize)]
-pub struct Pagination {
-	page: Option<i64>,
-	limit: Option<i64>,
-}
-
 #[actix_web::get("/avito/accounts")]
 pub async fn get_all_avito_accounts(
 	user: JwtMiddleware,
-	pagination: web::Query<Pagination>,
+	pagination: web::Query<PaginationParams>,
 	data: web::Data<AppState>,
 ) -> Result<HttpResponse> {
 	let mut conn = data.db.get().unwrap();
 
+	// Get total count for the specific user
+	let total_count: i64 = crate::schema::avito_accounts::table
+		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
+		.count()
+		.get_result(&mut conn)
+		.unwrap_or(0);
+
 	// Get pagination parameters
 	let page = pagination.page.unwrap_or(1).max(1);
-	let limit = pagination.limit.unwrap_or(10).min(10); // max 100 per page
+	let limit = pagination.limit.unwrap_or(10).min(100); // max 100 per page
 	let offset = (page - 1) * limit;
+
+	// Calculate pages
+	let pages = if limit > 0 {
+		((total_count as f64) / (limit as f64)).ceil() as u32
+	} else {
+		1
+	};
 
 	// Query avito accounts for the authenticated user with pagination
 	let avito_accounts: Vec<AvitoAccount> = crate::schema::avito_accounts::table
 		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id)) // Proper UUID comparison
-		.limit(limit)
-		.offset(offset)
+		.limit(limit as i64)
+		.offset(offset as i64)
 		.load(&mut conn)
 		.map_err(|e| {
 			eprintln!("Database error when fetching Avito accounts: {}", e);
@@ -63,11 +71,14 @@ pub async fn get_all_avito_accounts(
 		decrypted_accounts.push(acc);
 	}
 
-	Ok(HttpResponse::Ok().json(AvitoAccountsResponse {
+	Ok(HttpResponse::Ok().json(ResponseWithPagination {
 		status: "success".to_string(),
-		results: decrypted_accounts.len(),
-		data: AvitoAccountsData {
-			avito_accounts: decrypted_accounts,
+		data: decrypted_accounts,
+		pagination: PaginationResponse {
+			page,
+			limit,
+			total: total_count,
+			pages,
 		},
 	}))
 }

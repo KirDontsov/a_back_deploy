@@ -1,14 +1,11 @@
 use crate::jwt_auth::JwtMiddleware;
-use crate::{
-	models::AvitoAd,
-	AppState,
-};
+use crate::{models::AvitoAd, AppState};
 use actix_web::{web, HttpResponse, Result};
 use diesel::prelude::*;
 use serde_json::json;
 use uuid::Uuid;
 
-use super::models::{AvitoAdWithFields, AvitoAdFieldWithValues, AvitoAdWithFieldsResponse};
+use super::models::{AvitoAdFieldWithValues, AvitoAdWithFields, AvitoAdWithFieldsResponse};
 
 #[actix_web::get("/avito_ads/{id}")]
 pub async fn get_avito_ad_by_id(
@@ -22,8 +19,7 @@ pub async fn get_avito_ad_by_id(
 	// Get the ad with permission checking
 	let avito_ad = match crate::schema::avito_ads::table
 		.inner_join(
-			crate::schema::avito_feeds::table
-				.inner_join(crate::schema::avito_accounts::table),
+			crate::schema::avito_feeds::table.inner_join(crate::schema::avito_accounts::table),
 		)
 		.filter(crate::schema::avito_ads::ad_id.eq(ad_id))
 		.filter(crate::schema::avito_accounts::user_id.eq(user.user_id))
@@ -31,13 +27,13 @@ pub async fn get_avito_ad_by_id(
 		.first::<AvitoAd>(&mut conn)
 	{
 		Ok(ad) => ad,
-	Err(diesel::result::Error::NotFound) => {
+		Err(diesel::result::Error::NotFound) => {
 			return Ok(HttpResponse::NotFound().json(json!({
 				"status": "fail",
 				"message": "Ad not found or you don't have permission to access it"
 			})));
 		}
-	Err(_) => {
+		Err(_) => {
 			return Ok(HttpResponse::InternalServerError().json(json!({
 				"status": "error",
 				"message": "Failed to fetch ad"
@@ -51,7 +47,7 @@ pub async fn get_avito_ad_by_id(
 		.load::<crate::models::AvitoAdField>(&mut conn)
 	{
 		Ok(fields) => fields,
-	Err(_) => Vec::new(), // Continue with empty fields if there's an error
+		Err(_) => Vec::new(), // Continue with empty fields if there's an error
 	};
 
 	let mut fields_with_values = Vec::new();
@@ -65,10 +61,7 @@ pub async fn get_avito_ad_by_id(
 			Err(_) => Vec::new(), // Continue with empty values if there's an error
 		};
 
-		fields_with_values.push(AvitoAdFieldWithValues {
-			field,
-			values,
-		});
+		fields_with_values.push(AvitoAdFieldWithValues { field, values });
 	}
 
 	let ad_with_fields = AvitoAdWithFields {

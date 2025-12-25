@@ -53,7 +53,6 @@ pub struct AvitoAccountData {
 #[derive(Serialize)]
 pub struct AvitoAccountsResponse {
 	pub status: String,
-	pub results: usize,
 	pub data: AvitoAccountsData,
 }
 

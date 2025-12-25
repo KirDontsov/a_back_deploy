@@ -94,10 +94,3 @@ pub struct AvitoAnalyticsAdsData {
 	pub ads: Vec<AvitoAnalyticsAd>,
 	pub ads_count: i64,
 }
-
-// Pagination parameters for the controller
-#[derive(Deserialize)]
-pub struct FilterOptions {
-	pub page: Option<u32>,
-	pub limit: Option<u32>,
-}
